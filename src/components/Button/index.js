@@ -6,6 +6,9 @@ import PropTypes from 'prop-types';
 import { Container, Text } from './styles';
 
 const Button = ({ children, loading, ...rest }) => {
+  console.tron.log('loading');
+  console.tron.log(loading);
+  console.tron.log('/loading');
   return (
     <Container {...rest}>
       {loading ? (

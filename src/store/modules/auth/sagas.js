@@ -29,8 +29,9 @@ export function* signIn({ payload }) {
     }
 
     api.defaults.headers.Authorization = `Bearer ${token}`;
-    yield put(signInSuccess(token, user));
 
+    yield put(signInSuccess(token, user));
+    console.tron.log('delay');
     // history.push('/dashboard');
   } catch (err) {
     Alert.alert(

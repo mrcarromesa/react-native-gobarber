@@ -1,7 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Image } from 'react-native';
+
+import { useDispatch, useSelector } from 'react-redux';
+
 import { useNavigation } from '@react-navigation/native';
 import Background from '~/components/Background';
+
+import { singUpRequest } from '~/store/modules/auth/actions';
 
 import logo from '~/assets/logo.png';
 
@@ -15,12 +20,22 @@ import {
 } from './styles';
 
 const SignUp = () => {
+  const dispatch = useDispatch();
+
+  const loading = useSelector((state) => state.auth.loading);
+
   const navigation = useNavigation();
 
   const emailRef = useRef();
   const passwordRef = useRef(null);
 
-  function handleSubmit() {}
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  function handleSubmit() {
+    dispatch(singUpRequest(name, email, password));
+  }
 
   return (
     <Background>
@@ -34,6 +49,8 @@ const SignUp = () => {
             placeholder="Nome completo"
             returnKeyType="next"
             onSubmitEditing={() => emailRef.current.focus()}
+            value={name}
+            onChangeText={setName}
           />
           <FormInput
             icon="mail-outline"
@@ -44,6 +61,8 @@ const SignUp = () => {
             ref={emailRef}
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current.focus()}
+            value={email}
+            onChangeText={setEmail}
           />
           <FormInput
             icon="lock-outline"
@@ -52,9 +71,13 @@ const SignUp = () => {
             ref={passwordRef}
             returnKeyType="send"
             onSubmitEditing={() => handleSubmit}
+            value={password}
+            onChangeText={setPassword}
           />
 
-          <SubmitButton onPress={handleSubmit}>Acessar</SubmitButton>
+          <SubmitButton onPress={handleSubmit} loading={loading}>
+            Criar Conta
+          </SubmitButton>
         </Form>
 
         <SignLink

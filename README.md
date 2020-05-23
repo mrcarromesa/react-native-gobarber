@@ -407,3 +407,250 @@ export default api;
 
 
 - No arquivo `src/index.js` vamos adicionar o provider do redux
+
+```js
+import React from 'react';
+import { PersistGate } from 'redux-persist/integration/react'; // <--
+import { Provider } from 'react-redux'; // <--
+import { StatusBar } from 'react-native';
+import './config/ReactotronConfig';
+
+import { store, persistor } from './store'; // <--
+import Routes from './routes';
+
+const App = () => {
+  return (
+    <Provider store={store}> // <--
+      <PersistGate persistor={persistor}> // <--
+        <StatusBar barStyle="light-content" backgroundColor="#7159c1" />
+        <Routes />
+      </PersistGate> // <--
+    </Provider> // <--
+  );
+};
+
+export default App;
+
+```
+
+## Utilizando o Redux na aplicação
+
+- No arquivo `src/pages/SignIn` adicione:
+
+```js
+
+import { useDispatch } from 'react-redux';
+import { signInRequest } from '~/store/modules/auth/actions';
+//...
+const dispatch = useDispatch();
+//...
+function handleSubmit() {
+  dispatch(signInRequest(email, password));
+}
+//...
+
+```
+
+- No Reactotron será possível verificar que algumas coisas aconteceram...
+  - A chamada API
+  - A chamada do AsyncStorage
+
+- Também no Reactotron no botão `State` - Podemos adicionar o monitoramento do reducer `auth` e `user` e vemos que eles são preenchidos.
+
+---
+
+- Também podemos adicionar a utilização do redux no SignUp
+
+
+- Adicionar o loading no button na página `SignIn`:
+
+```js
+import { useDispatch, useSelector } from 'react-redux';
+
+// ...
+
+const loading = useSelector((state) => state.auth.loading);
+
+// ...
+
+<SubmitButton loading={loading} onPress={handleSubmit}>
+  Acessar
+</SubmitButton>
+```
+
+- O mesmo pode ser feito em `SignUp`
+
+- Uma dica, no `sagas.js` podemos utilizar um delay quando necessário, para dar um atraso:
+
+```js
+import { takeLatest, call, put, all } from 'redux-saga/effects';
+
+// ...
+
+yield delay(3000);
+```
+
+
+---
+
+## Utilizando Navegação por abas
+
+- Primeiro instale a dependencia:
+
+```bash
+yarn add @react-navigation/bottom-tabs
+```
+
+---
+
+### Melhorando a estrutura de Rotas
+
+- Primeiro vamos eliminar o arquivo `src/routes.js`
+- Criar a pasta `src/routes/`
+- Criar o arquivo `src/routes/index.js`
+- Criar o arquivo `src/routes/auth.routes.js`
+- Criar o arquivo `src/routes/app.routes.js`
+
+- No arquivo `src/routes/auth.routes.js` adicionar:
+
+```js
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
+
+import SignIn from '~/pages/SignIn';
+import SignUp from '~/pages/SignUp';
+
+const Stack = createStackNavigator();
+
+const AuthRoutes = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="SignIn" component={SignIn} />
+      <Stack.Screen
+        name="SignUp"
+        component={SignUp}
+        options={{ title: 'SignUp' }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+export default AuthRoutes;
+
+```
+
+- No arquivo `src/routes/app.routes.js` adicionar:
+
+```js
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+
+import Dashboard from '~/pages/Dashboard';
+
+const Tab = createBottomTabNavigator();
+
+const AppRoutes = () => {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen name="Dashboard" component={Dashboard} />
+    </Tab.Navigator>
+  );
+};
+
+export default AppRoutes;
+
+```
+
+- Por fim no arquivo `src/routes/index.js` adicionar:
+
+```js
+import 'react-native-gesture-handler';
+import React from 'react';
+import { useSelector } from 'react-redux'; // <-- Utilizamos o useSelector para obter o state global
+import { NavigationContainer } from '@react-navigation/native';
+import AuthRoutes from './auth.routes'; // <-- AS rotas de autenticação
+import AppRoutes from './app.routes'; // <-- As Rotas do aplicativo já autenticado
+
+export default function Routes() {
+  const { signed } = useSelector((state) => state.auth); // <-- Verificar se o usuário está logado ou não
+  return (
+    <NavigationContainer>
+      {signed ? <AppRoutes /> : <AuthRoutes />} // <-- Caso o usuário esteja logado Exibimos as Rotas autenticadas, do contrário exibimos as rotas de autenticação.
+    </NavigationContainer>
+  );
+}
+
+```
+
+- Ajuste da TabBar, No arquivo `src/routes/app.routes.js` temos o seguinte:
+
+
+```js
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+
+import Dashboard from '~/pages/Dashboard';
+
+const Tab = createBottomTabNavigator();
+
+const AppRoutes = () => {
+  return (
+    <Tab.Navigator
+      tabBarOptions={{
+        keyboardHidesTabBar: true,
+        activeTintColor: '#fff',
+        inactiveTintColor: 'rgba(255, 255, 255, 0.6)',
+        style: {
+          backgroundColor: '#8d41a8',
+        },
+      }}
+    >
+      <Tab.Screen name="Dashboard" component={Dashboard} />
+    </Tab.Navigator>
+  );
+};
+
+export default AppRoutes;
+```
+
+- Adicionamos para `Tab.Navigator` a prop `tabBarOptions` que recebe um objeto com as seguintes opções:
+
+- `keyboardHidesTabBar` Informar se deve ser ocultado ou não ao exibir o teclado, true é igual a ocultar ,
+- `activeTintColor` Cor do icone e do label quando ativo,
+- `inactiveTintColor` Cor do icone e do label quando inativo,
+- `style` estilização css.
+
+---
+
+- Foi criado também o componente : `src/components/TabIcon/index.js` para adicionar o icone na aba como componente, Dessa forma conseguimos informar os propTypes.
+
+- E na tela `src/pages/Dashboard/index.js` adicionamos o seguinte:
+
+```js
+// ...
+import { useNavigation } from '@react-navigation/native';
+
+import TabIcon from '~/components/TabIcon';
+// ...
+
+const Dashboard = () => {
+  const navigation = useNavigation();
+
+  // Abaixo informamos as opção do tabBar
+  navigation.setOptions({
+    tabBarLabel: 'Agendamentos',
+    tabBarIcon: TabIcon, // <-- Aqui recebe o icone importado acima
+  });
+  return <View />;
+};
+
+export default Dashboard;
+
+```
+
+---
+
+- Criamos outra tela `src/pages/Profile/index.js` e importamos na rota autenticada.
