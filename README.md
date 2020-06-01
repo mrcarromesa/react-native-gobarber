@@ -1,5 +1,8 @@
 # App GoBarber Mobile
 
+- Back-end: [Gobarber](https://github.com/mrcarromesa/gobarber)
+- Aplicação Web: [Gobarber](https://github.com/mrcarromesa/react-gobarber-web)
+
 - Iniciando o projeto utilizando o comando:
 
 ```bash
