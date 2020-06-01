@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import Icons from 'react-native-vector-icons/MaterialIcons';
 
 const TabIcon = ({ color, iconName }) => {
-  return <Icons name={iconName} size={20} color={color} />;
+  return <Icons name={iconName} size={20} color={color} style={{ color }} />;
 };
 
 TabIcon.propTypes = {

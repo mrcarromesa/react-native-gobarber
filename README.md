@@ -556,7 +556,10 @@ const Tab = createBottomTabNavigator();
 const AppRoutes = () => {
   return (
     <Tab.Navigator>
-      <Tab.Screen name="Dashboard" component={Dashboard} />
+      <Tab.Screen
+        name="Dashboard"
+        component={Dashboard}
+      />
     </Tab.Navigator>
   );
 };
@@ -593,6 +596,7 @@ export default function Routes() {
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import Dashboard from '~/pages/Dashboard';
+import TabIcon from '~/components/TabIcon';
 
 const Tab = createBottomTabNavigator();
 
@@ -608,7 +612,13 @@ const AppRoutes = () => {
         },
       }}
     >
-      <Tab.Screen name="Dashboard" component={Dashboard} />
+      <Tab.Screen
+        name="Dashboard"
+        component={Dashboard}
+        options={{
+          tabBarIcon: (props) => <TabIcon {...props} iconName="person" />,
+        }}
+      />
     </Tab.Navigator>
   );
 };
@@ -622,6 +632,8 @@ export default AppRoutes;
 - `activeTintColor` Cor do icone e do label quando ativo,
 - `inactiveTintColor` Cor do icone e do label quando inativo,
 - `style` estilização css.
+
+- No caso do Tab Navigator a parte do icone é necessário inserir direto no Tab Screen, pois todos eles serão carregados antes da tela ser reenderizada, porém se inserir apenas nas opções na tela ele só será exibido apenas quando a tal tela for acessada.
 
 ---
 
@@ -654,3 +666,416 @@ export default Dashboard;
 ---
 
 - Criamos outra tela `src/pages/Profile/index.js` e importamos na rota autenticada.
+
+
+---
+
+## Estilizando a tela Dashboard
+
+- no arquivo `src/pages/Dashboard/styles.js` utilizamos o seguinte para o `Container` ao invés de utilizar o `View` utilizamos o `SafeAreaView` pois ele adiciona o tamanho do corte da statusbar, que há no iPhone X
+
+
+---
+
+- Para trabalhar com datas no component `src/components/Appointment/index.js` utilizamos o `data-fns`:
+
+```bash
+yarn add date-fns@next
+```
+
+- E então para formatar uma data determinando quando tempo já se passou relativo a outra data utilizamos a seguinte forma:
+
+```js
+import { parseISO, formatRelative } from 'date-fns';
+import pt from 'date-fns/locale/pt-BR';
+
+// ...
+return formatRelative(parseISO(data.date), new Date(), {
+  locale: pt,
+  addSuffix: true,
+});
+// ...
+```
+
+- Cancelando um agendamento...:
+
+- No arquivo Dashboard adicionamos o seguinte:
+
+
+```js
+
+//...
+async function handleCancel(id) {
+  const { data } = await api.delete(`appointments/${id}`);
+
+  setAppointments(
+    // Pecorre todo o array
+    appointments.map((appointment) =>
+      appointment.id === id
+      // caso encontre o id
+        ?
+        // reecria o objeto com a prop canceled_at
+        { ...appointment, canceled_at: data.canceled_at }
+        :
+        // Do contrario retorna ele mesmo
+        appointment
+    )
+  );
+}
+
+//...
+<List
+  data={appointments}
+  keyExtractor={(item) => String(item.id)}
+  renderItem={({ item }) => (
+    <Appointment onCancel={() =>
+      // envia a function para o conponent
+      handleCancel(item.id)} data={item} />
+  )}
+/>
+//...
+//...
+
+```
+
+- No arquivo `src/components/Appointment/index.js` adicionamos o seguinte:
+
+```js
+
+//...
+const Appointment = ({ data, onCancel }) => {
+  //...
+    {data.cancelable && !data.canceled_at && (
+      <TouchableOpacity onPress={onCancel}>
+        <Icon name="event-busy" size={20} color="#f64c75" />
+      </TouchableOpacity>
+    )}
+  //...
+}
+
+```
+
+
+---
+
+
+## Sair da aplicação:
+
+- No arquivo `src/pages/Profile/index.js` temos o seguinte:
+
+```js
+//...
+import { useDispatch, useSelector } from 'react-redux';
+import { signOut } from '~/store/modules/auth/actions';
+//...
+function handleLogout() {
+  dispatch(signOut());
+}
+//...
+```
+
+- E quando clicamos nesse botão ele já redireciona para página de login automáticamente.
+- Como isso acontece?
+
+- O arquivo `src/store/modules/auth/actions.js` lança a action:
+
+```js
+export function signOut() {
+  return {
+    type: '@auth/SIGN_OUT',
+  };
+}
+```
+
+- Que por sua vez é "ouvida" pelo `src/store/modules/auth/reducer.js`:
+
+```js
+case '@auth/SIGN_OUT': {
+  draft.token = null;
+  draft.signed = false;
+  break;
+}
+```
+
+- E Que por sua vez é "ouvida" pelo `src/store/modules/user/reducer.js`:
+
+```js
+case '@auth/SIGN_OUT': {
+  draft.profile = null;
+  break;
+}
+```
+
+- O qual seta o `token`, o `signed` e o `profile` como `null`, e para completar, no arquivo `src/routes/index.js` acompanha a alteração desse objeto e toma ação quando ele é alterado especificamente o objeto `profile`:
+
+```js
+export default function Routes() {
+  const { signed } = useSelector((state) => state.auth);
+  return (
+    <NavigationContainer>
+      {signed ? <AppRoutes /> : <AuthRoutes />}
+    </NavigationContainer>
+  );
+}
+
+```
+
+- Como podemos verificar quando há alteração no `signed` a rota também muda.
+
+
+---
+
+## Rotas para agendamento
+
+
+- Criar a pasta `src/pages/New`
+- Criar o arquivo `src/pages/New/SelectProvider/index.js`
+- Criar o arquivo `src/pages/New/SelectDateTime/index.js`
+- Criar o arquivo `src/pages/New/Confirm/index.js`
+
+- Ajustar as rotas `src/routes/app.routes.js`:
+
+```js
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack'; // <- Adicionado
+import TabIcon from '~/components/TabIcon';
+
+import SelectProvider from '~/pages/New/SelectProvider'; // <- Adicionado
+import SelectDateTime from '~/pages/New/SelectDateTime'; // <- Adicionado
+import Confirm from '~/pages/New/Confirm'; // <- Adicionado
+
+import Dashboard from '~/pages/Dashboard';
+import Profile from '~/pages/Profile';
+
+const Tab = createBottomTabNavigator();
+
+const New = createStackNavigator(); // <- Adicionado
+
+
+// Adicionado essa function
+const NavNew = () => {
+  return (
+    <New.Navigator
+      screenOptions={{
+        headerTransparent: true,
+        headerTintColor: '#fff',
+        headerLeftContainerStyle: {
+          marginLeft: 20,
+        },
+      }}
+    >
+      <New.Screen
+        name="SelectProvider"
+        options={{
+          title: 'Selecione o prestador',
+        }}
+        component={SelectProvider}
+      />
+      <New.Screen name="SelectDateTime" component={SelectDateTime} />
+      <New.Screen name="Confirm" component={Confirm} />
+    </New.Navigator>
+  );
+};
+
+const AppRoutes = () => {
+  return (
+    <Tab.Navigator
+      tabBarOptions={{
+        keyboardHidesTabBar: true, //Permitir o teclado a ser exibido ocultar a barra do tabbar
+        activeTintColor: '#fff',
+        inactiveTintColor: 'rgba(255, 255, 255, 0.6)',
+        style: {
+          backgroundColor: '#8d41a8',
+        },
+      }}
+      initialRouteName="Dashboard"
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={Dashboard}
+        options={{
+          tabBarIcon: (props) => <TabIcon {...props} iconName="event" />,
+        }}
+      />
+      {/* Adicionado essa Tab screnn */}
+      <Tab.Screen
+        name="New"
+        component={NavNew}
+        options={{
+          tabBarVisible: false, // <- Removida a visualizacao do tabbar para quando estiver em alguma dessas telas não ter a posibilidade de navegar entre as demais abas.
+          tabBarLabel: 'Agendar',
+          tabBarIcon: (props) => (
+            <TabIcon {...props} iconName="add-circle-outline" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={Profile}
+        options={{
+          tabBarIcon: (props) => <TabIcon {...props} iconName="person" />,
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
+export default AppRoutes;
+
+```
+
+---
+
+- Adicionar um Button Left no header do Navigation
+
+- No arquivo `src/pages/New/SelectProvider/index.js` adicionar o seguinte:
+
+```js
+import React from 'react';
+import { TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native'; // <- Adicionar
+import Icon from 'react-native-vector-icons/MaterialIcons'; // <- Adicionar
+// ...
+
+const SelectProvider = () => {
+  const navigation = useNavigation(); // <- Adicionar
+
+  // Adicionamos buttons no header dessa forma
+  navigation.setOptions({
+    headerLeft: () => (
+      <TouchableOpacity onPress={() => navigation.navigate('Dashboard')}>
+        <Icon name="chevron-left" size={20} color="#fff" />
+      </TouchableOpacity>
+    ),
+  });
+  // ...
+};
+
+export default SelectProvider;
+
+```
+
+
+---
+
+## Seleção do prestador de serviço
+
+- Um dos componentes dessa tela é uma `FlatList` e iremos utilizar com colunas.
+
+- No arquivo `src/pages/New/SelectProvider/styles.js` temos:
+
+```js
+export const ProviderList = styled.FlatList.attrs({
+  showsVerticalScrollIndicator: false,
+  numColumns: 2,
+})`
+  margin-top: 60px;
+  padding: 0 20px;
+`;
+```
+
+---
+
+## Tela diferenciada para IOS e Android
+
+- Para tela de escolha de Data iremos utilizar componentes diferente para Android e IOS
+
+- Crie a pasta `src/components/DateInput`
+
+- Crie o arquivo `src/components/DateInput/index.js` deixar vazio
+
+- Crie o arquivo `src/components/DateInput/index.android.js`
+- Crie o arquivo `src/components/DateInput/index.ios.js`
+
+- O React Native irá se encarregar de utilizar o arquivo certo
+
+- No arquivo `src/pages/New/SelectDateTime/index.js` vamos adicionar o component dessa forma:
+
+```js
+//...
+import DateInput from '~/components/DateInput';
+//...
+
+<DateInput date={date} onChange={setDate} />
+//...
+```
+
+- Mais detalhes: [React Native DateTimePicker](https://github.com/react-native-community/datetimepicker)
+
+- Para utilizar o DataPicker agora é necessario instalar o componet do community:
+
+```bash
+yarn add @react-native-community/datetimepicker
+```
+
+- Para ios, acesse a pasta `ios` e execute o comando:
+
+```bash
+pod install
+```
+
+
+---
+
+- Na tela de SelectDateTime, utilizamos o `RectButton` pois diferente do `TouchableOpacity` ele possuí a propriedade `enabled` que não permite o click do botão caso esteja como false.
+
+
+---
+
+- Algo que foi utilizado na parte da tela de Confirmação foi receber paramentros de outra rota...
+
+- Da página `src/pages/New/SelectDateTime/index.js` passamos os parametros:
+
+```js
+function handleSelectHour(time) {
+  navigation.navigate('Confirm', {
+    provider,
+    time,
+  });
+}
+```
+
+- E recebemos essa info na outra página `src/pages/New/Confirm/index.js` dessa forma:
+
+```js
+//...
+import { useNavigation, useRoute } from '@react-navigation/native';
+//...
+const route = useRoute();
+const { provider, time } = route.params;
+//...
+```
+
+
+---
+
+## Resolvendo um problema para realizar um reload quando recarregar o dashboard
+
+- Quando acessamos a primeira vez uma rota ela é criada na memória e podemos utilizar normalmente o `useEffect` porém quando precisamos executar uma functio para quando voltamos para determinada rota, ela não é recriada, pois ela já está na memória, dessa forma não conseguimos utilizar o `useEffect` para tal utilizamos o `useFocusEffect` o qual identifica se retornamos para determinada rota e executa uma ação quando voltamos para ela, e o uso dela é igual ao `useEffect`, conforme é possível notar na página `src/pages/Dashboard/index.js`
+
+
+```js
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+```
+
+---
+
+## Resolver problemas com as abas
+
+- Quando realizamos uma navegação direta de uma aba para outra utilizando a function `navigation.navigate()` dentro de uma navegação Stack para uma navegação `Pai` que é com abas, ao tentar retornar para o fluxo normal dessa aba, é possível que ele retorne para última tela acessada ao invés da primeira, para contornar isso utilizamos a prop: `unmountOnBlur: true`, conforme utilizado em `src/routes/app.routes.js`:
+
+```js
+<Tab.Screen
+  name="New"
+  component={NavNew}
+  options={{
+    unmountOnBlur: true, // <- Utilizado aqui
+    tabBarVisible: false,
+    tabBarLabel: 'Agendar',
+    tabBarIcon: (props) => (
+      <TabIcon {...props} iconName="add-circle-outline" />
+    ),
+  }}
+/>
+```
